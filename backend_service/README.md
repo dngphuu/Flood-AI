@@ -120,3 +120,32 @@ uv run pytest
   - `ai_service.py`: Module kết nối AI Vision.
   - `routing_service.py`: Module xử lý bản đồ và tìm đường.
 - `tests/`: Các test case.
+
+## Dành cho AI Service
+
+Backend Service cần giao tiếp với AI Service qua API để nhận diện ngập lụt.
+
+### Yêu cầu API AI Service
+
+**Endpoint:** `POST /classify` (hoặc URL được cấu hình trong `AI_SERVICE_URL`)
+
+**Request Body:**
+
+```json
+{
+  "camera_id": "string",
+  "image_url": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "FLOODED" | "SAFE"
+}
+```
+
+Nếu status là `FLOODED`, Backend sẽ đánh dấu tọa độ của camera đó là điểm ngập và chặn đường đi qua khu vực đó.
+Vui lòng đảm bảo API phản hồi nhanh (< 500ms) để không làm chậm quá trình tìm đường.
+
