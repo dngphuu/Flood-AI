@@ -32,22 +32,27 @@ def route_request():
     import asyncio
     
     # Run async function in sync Flask route
-    # Note: For production, consider using Quart or Flask[async] properly
     try:
         flooded_coords = asyncio.run(check_flood_status(camera_data))
     except Exception as e:
         print(f"Error calling AI service: {e}")
         flooded_coords = []
+        
+    # Calculate Safe Route
+    from .routing_service import get_safe_route
     
-    # Placeholder response
+    # Note: get_safe_route might take time to download graph on first run
+    path_coords = get_safe_route(start_coords, end_coords, flooded_coords)
+    
     response = {
         "status": "success",
-        "message": "Route request received",
+        "message": "Route calculated",
         "data": {
             "start": start_coords,
             "end": end_coords,
             "camera_count": len(camera_data),
-            "flooded_coords": flooded_coords
+            "flooded_coords": flooded_coords,
+            "path": path_coords
         }
     }
     

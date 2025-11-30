@@ -71,7 +71,7 @@ uv run pytest
 ```json
 {
   "status": "success",
-  "message": "Route request received",
+  "message": "Route calculated",
   "data": {
     "start": {
       "lat": 21.0,
@@ -81,7 +81,18 @@ uv run pytest
       "lat": 21.1,
       "lng": 105.9
     },
-    "camera_count": 1
+    "camera_count": 1,
+    "flooded_coords": [
+        {
+            "lat": 21.05,
+            "lng": 105.85
+        }
+    ],
+    "path": [
+        {"lat": 21.0, "lng": 105.8},
+        {"lat": 21.01, "lng": 105.81},
+        ...
+    ]
   }
 }
 ```
@@ -91,9 +102,21 @@ uv run pytest
 - Thiếu `start_coords` hoặc `end_coords`.
 - Sai định dạng JSON.
 
+## Tính năng chính
+
+1. **Tích hợp AI Vision**:
+   - Kết nối với AI Service để phân tích ảnh từ camera.
+   - Xác định các điểm ngập (FLOODED) và loại bỏ khỏi bản đồ định tuyến.
+
+2. **Định tuyến Động (Dynamic Routing)**:
+   - Sử dụng **OSMnx** và **NetworkX** để xây dựng đồ thị giao thông từ OpenStreetMap.
+   - Tính toán lộ trình an toàn tránh các điểm ngập đã xác định.
+
 ## Cấu trúc dự án
 
 - `src/backend_service/`: Mã nguồn chính.
   - `app.py`: Khởi tạo Flask app.
   - `routes.py`: Định nghĩa các API endpoints.
+  - `ai_service.py`: Module kết nối AI Vision.
+  - `routing_service.py`: Module xử lý bản đồ và tìm đường.
 - `tests/`: Các test case.
