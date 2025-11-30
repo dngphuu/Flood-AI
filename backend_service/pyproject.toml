@@ -7,7 +7,11 @@ authors = [
     { name = "tuanq", email = "tuanquangkhk@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "flask>=3.1.2",
+    "httpx>=0.28.1",
+    "requests>=2.32.5",
+]
 
 [project.scripts]
 backend-service = "backend_service:main"
@@ -15,3 +19,9 @@ backend-service = "backend_service:main"
 [build-system]
 requires = ["uv_build>=0.9.7,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "respx>=0.22.0",
+]
