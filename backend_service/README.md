@@ -28,10 +28,19 @@ Server sẽ khởi động tại `http://0.0.0.0:5000`.
 
 ## Chạy kiểm thử
 
-Dự án sử dụng `pytest`. Để chạy toàn bộ test:
+Dự án sử dụng `pytest`. Cấu trúc thư mục test mới:
+- `tests/unit/`: Unit tests (API, Routing, Mocked AI).
+- `tests/integration/`: Integration tests với AI Service thật.
+- `tests/assets/`: Dữ liệu test (ảnh).
 
+Để chạy unit tests:
 ```bash
-uv run pytest
+uv run pytest tests/unit
+```
+
+Để chạy integration tests (yêu cầu AI Service đang chạy):
+```bash
+uv run python tests/integration/verify_integration.py
 ```
 
 ## API Documentation
