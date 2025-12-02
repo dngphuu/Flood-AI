@@ -69,7 +69,8 @@ uv run python tests/integration/verify_integration.py
       "coords": {
         "lat": 21.05,
         "lng": 105.85
-      }
+      },
+      "snapshot_url": "http://example.com/snap.jpg"
     }
   ]
 }
@@ -109,13 +110,15 @@ uv run python tests/integration/verify_integration.py
 **Response (400 Bad Request):**
 
 - Thiếu `start_coords` hoặc `end_coords`.
+- Thiếu `snapshot_url` trong `camera_data`.
 - Sai định dạng JSON.
 
 ## Tính năng chính
 
 1. **Tích hợp AI Vision**:
    - Kết nối với AI Service để phân tích ảnh từ camera.
-   - Xác định các điểm ngập (FLOODED) và loại bỏ khỏi bản đồ định tuyến.
+   - Xác định các điểm ngập (dựa trên `prediction.class == "flood"`) và loại bỏ khỏi bản đồ định tuyến.
+   - **Lưu ý**: Nếu không thể lấy ảnh hoặc gọi AI Service thất bại, hệ thống sẽ mặc định coi khu vực đó là an toàn (không ngập) để đảm bảo định tuyến vẫn hoạt động.
 
 2. **Định tuyến Động (Dynamic Routing)**:
    - Sử dụng **OSMnx** và **NetworkX** để xây dựng đồ thị giao thông từ OpenStreetMap.
@@ -147,15 +150,21 @@ Backend Service cần giao tiếp với AI Service qua API để nhận diện n
 
 ```json
 {
-  "success": true,
   "prediction": {
-    "class": "flood", // hoặc "dry_road"
-    "confidence": 0.95,
-    "confident": true
-  }
+    "class": "flood",
+    "class_id": 1,
+    "confidence": 0.9854,
+    "confident": true,
+    "probabilities": {
+      "dry_road": 0.0146,
+      "flood": 0.9854
+    },
+    "threshold": 0.7
+  },
+  "success": true
 }
 ```
 
-Nếu `prediction.class` là `flood`, Backend sẽ đánh dấu tọa độ của camera đó là điểm ngập và chặn đường đi qua khu vực đó.
+Backend sẽ kiểm tra `success == true` và `prediction.class == "flood"`. Nếu thỏa mãn, tọa độ của camera sẽ được đánh dấu là điểm ngập.
 Vui lòng đảm bảo API phản hồi nhanh (< 500ms) để không làm chậm quá trình tìm đường.
 
