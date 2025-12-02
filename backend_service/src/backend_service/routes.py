@@ -11,7 +11,11 @@ def route_request():
       "start_coords": {"lat": float, "lng": float},
       "end_coords": {"lat": float, "lng": float},
       "camera_data": [
-        {"id": "cam_001", "coords": {"lat": float, "lng": float}}
+        {
+          "id": "cam_001", 
+          "coords": {"lat": float, "lng": float},
+          "snapshot_url": "http://example.com/snap.jpg"
+        }
       ]
     }
     """
@@ -23,6 +27,11 @@ def route_request():
     start_coords = data.get('start_coords')
     end_coords = data.get('end_coords')
     camera_data = data.get('camera_data', [])
+
+    # Validate camera_data
+    for cam in camera_data:
+        if 'snapshot_url' not in cam:
+             return jsonify({"error": f"Missing snapshot_url for camera {cam.get('id', 'unknown')}"}), 400
     
     if not start_coords or not end_coords:
         return jsonify({"error": "Missing start_coords or end_coords"}), 400
