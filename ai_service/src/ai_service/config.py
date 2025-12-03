@@ -61,7 +61,7 @@ class FlaskConfig:
     
     # Server settings
     HOST: str = os.getenv("FLASK_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("FLASK_PORT", "5000"))
+    PORT: int = int(os.getenv("FLASK_PORT", "8000"))
     DEBUG: bool = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "yes")
     
     # File upload settings

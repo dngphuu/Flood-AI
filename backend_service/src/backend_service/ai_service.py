@@ -1,70 +1,133 @@
+"""
+AI service integration module.
+Handles flood detection by sending camera images to AI service.
+"""
 import httpx
 import asyncio
+from typing import List, Dict, Optional
+from .logger import logger
+from . import config
+from .camera_service import get_camera_service
+from .get_image import create_session, get_image_by_id
 
-AI_SERVICE_URL = "http://localhost:5000/api/v1/predict"
-
-async def check_flood_status(camera_data):
+async def check_flood_status(camera_ids: List[str]) -> List[Dict]:
     """
-    Check flood status for a list of cameras.
+    Check flood status for a list of cameras by ID.
     
     Args:
-        camera_data (list): List of dicts containing camera info.
-                            Example: [{"id": "cam1", "coords": {"lat": 21.0, "lng": 105.8}, "snapshot_url": "..."}]
-    
+        camera_ids: List of camera IDs to check
+        
     Returns:
-        list: List of coordinates that are flooded.
+        List of coordinates that are flooded: [{"lat": float, "lng": float}, ...]
     """
+    if not camera_ids:
+        logger.info("No cameras to check")
+        return []
+    
+    logger.info(f"Checking flood status for {len(camera_ids)} cameras")
     flooded_coords = []
     
-    async with httpx.AsyncClient() as client:
+    # Get camera service
+    camera_service = get_camera_service()
+    
+    # Validate camera IDs
+    valid_ids, invalid_ids = camera_service.validate_camera_ids(camera_ids)
+    if invalid_ids:
+        logger.warning(f"Invalid camera IDs: {invalid_ids}")
+    
+    if not valid_ids:
+        logger.warning("No valid camera IDs to process")
+        return []
+    
+    # Create session for image fetching (synchronous)
+    image_session = create_session()
+    
+    async with httpx.AsyncClient(timeout=config.AI_SERVICE_TIMEOUT) as client:
         tasks = []
-        for cam in camera_data:
-            tasks.append(_process_camera(client, cam))
+        for cam_id in valid_ids:
+            tasks.append(_process_camera(client, image_session, cam_id))
         
         # Run requests concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         for result in results:
             if isinstance(result, Exception):
-                print(f"Error processing camera: {result}")
+                logger.error(f"Error processing camera: {result}")
                 continue
             
             if result:
                 flooded_coords.append(result)
-
+    
+    logger.info(f"Found {len(flooded_coords)} flooded locations")
     return flooded_coords
 
-async def _process_camera(client, cam):
-    """Process a single camera: fetch image and classify."""
+async def _process_camera(client: httpx.AsyncClient, image_session, cam_id: str) -> Optional[Dict]:
+    """
+    Process a single camera: fetch image and classify.
+    
+    Args:
+        client: httpx.AsyncClient for AI service requests
+        image_session: requests.Session for image fetching
+        cam_id: Camera ID
+        
+    Returns:
+        Camera coordinates if flooded, None otherwise
+    """
+    camera_service = get_camera_service()
+    camera = camera_service.get_camera(cam_id)
+    
+    if not camera:
+        logger.warning(f"Camera {cam_id} not found in dataset")
+        return None
+    
     try:
-        # 1. Fetch image from snapshot_url
-        snapshot_url = cam.get("snapshot_url")
-        if not snapshot_url:
-            print(f"No snapshot URL for camera {cam.get('id')}")
-            return None
-
-        # In a real scenario, we would fetch the image. 
-        # For now, we assume the URL is accessible or mocked.
-        img_response = await client.get(snapshot_url)
-        if img_response.status_code != 200:
-            print(f"Failed to fetch image for camera {cam.get('id')}: {img_response.status_code}")
+        # Fetch image from camera
+        logger.debug(f"Fetching image for camera {cam_id}")
+        image_bytes = get_image_by_id(image_session, cam_id)
+        
+        if not image_bytes:
+            logger.warning(f"Failed to fetch image for camera {cam_id}")
             return None
         
-        image_bytes = img_response.content
-
-        # 2. Send image to AI Service
+        # Send image to AI Service
+        logger.debug(f"Sending image for camera {cam_id} to AI service")
         files = {'file': ('snapshot.jpg', image_bytes, 'image/jpeg')}
-        response = await client.post(AI_SERVICE_URL, files=files)
         
-        if response.status_code == 200:
-            result = response.json()
-            if result.get("success") and result.get("prediction", {}).get("class") == "flood":
-                return cam["coords"]
-        else:
-            print(f"AI Service returned {response.status_code} for camera {cam.get('id')}: {response.text}")
+        for attempt in range(config.AI_SERVICE_MAX_RETRIES):
+            try:
+                response = await client.post(config.AI_SERVICE_URL, files=files)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("success") and result.get("prediction", {}).get("class") == "flood":
+                        confidence = result.get("prediction", {}).get("confidence", 0)
+                        logger.info(f"Camera {cam_id} detected flood (confidence: {confidence:.2f})")
+                        return camera["coords"]
+                    else:
+                        logger.debug(f"Camera {cam_id} prediction: {result.get('prediction', {}).get('class', 'unknown')}")
+                        return None
+                else:
+                    logger.warning(f"AI Service returned {response.status_code} for camera {cam_id}: {response.text}")
+                    if attempt < config.AI_SERVICE_MAX_RETRIES - 1:
+                        await asyncio.sleep(0.5)  # Brief delay before retry
+                        continue
+                    return None
+                    
+            except httpx.TimeoutException:
+                logger.warning(f"Timeout calling AI service for camera {cam_id} (attempt {attempt + 1}/{config.AI_SERVICE_MAX_RETRIES})")
+                if attempt < config.AI_SERVICE_MAX_RETRIES - 1:
+                    await asyncio.sleep(0.5)
+                    continue
+                return None
+            except httpx.RequestError as e:
+                logger.warning(f"Request error calling AI service for camera {cam_id}: {e}")
+                if attempt < config.AI_SERVICE_MAX_RETRIES - 1:
+                    await asyncio.sleep(0.5)
+                    continue
+                return None
+        
+        return None
             
     except Exception as e:
-        print(f"Exception processing camera {cam.get('id')}: {e}")
-        raise e
-    
-    return None
+        logger.error(f"Exception processing camera {cam_id}: {e}", exc_info=True)
+        return None
