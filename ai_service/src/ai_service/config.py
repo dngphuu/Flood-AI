@@ -53,16 +53,21 @@ IMAGENET_STD: List[float] = [0.229, 0.224, 0.225]
 
 
 # ============================================================================
-# Flask Application Configuration
+# Application Configuration
 # ============================================================================
 
-class FlaskConfig:
-    """Flask application configuration."""
+class AppConfig:
+    """Application configuration."""
     
     # Server settings
-    HOST: str = os.getenv("FLASK_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("FLASK_PORT", "5000"))
-    DEBUG: bool = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "yes")
+    HOST: str = os.getenv("APP_HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("APP_PORT", "8000"))
+    DEBUG: bool = os.getenv("APP_DEBUG", "False").lower() in ("true", "1", "yes")
+    
+    # Worker settings
+    import multiprocessing
+    # Default to CPU count, but allow override via env var
+    WORKERS: int = int(os.getenv("APP_WORKERS", multiprocessing.cpu_count()))
     
     # File upload settings
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16 MB max file size

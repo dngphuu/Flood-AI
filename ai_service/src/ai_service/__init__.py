@@ -1,100 +1,112 @@
 """
 AI Service for Flood Image Classification.
 
-This package provides a Flask-based microservice for classifying images
+This package provides a FastAPI-based microservice for classifying images
 as flooded or non-flooded using an ONNX model.
 """
 
-from flask import Flask
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 import logging.config
 
-from ai_service.config import FlaskConfig, LOGGING_CONFIG
-from ai_service.api import api_bp, health_bp
+from ai_service.config import AppConfig, LOGGING_CONFIG
+from ai_service.api import router as api_router, health_router
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
-def create_app() -> Flask:
-    """
-    Flask application factory.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan for startup and shutdown events."""
+    logger = logging.getLogger(__name__)
+    logger.info("AI Service starting up...")
     
-    Creates and configures the Flask application with all blueprints
+    # Model is loaded when FloodClassifier is first instantiated in routes
+    yield
+    
+    logger.info("AI Service shutting down...")
+
+
+def create_app() -> FastAPI:
+    """
+    FastAPI application factory.
+    
+    Creates and configures the FastAPI application with all routers
     and error handlers.
     
     Returns:
-        Flask: Configured Flask application instance
-    
-    Example:
-        >>> from ai_service import create_app
-        >>> app = create_app()
-        >>> app.run(host="0.0.0.0", port=5000)
+        FastAPI: Configured FastAPI application instance
     """
     # Configure logging
     logging.config.dictConfig(LOGGING_CONFIG)
     logger = logging.getLogger(__name__)
     
-    # Create Flask app
-    app = Flask(__name__)
-    
-    # Load configuration
-    app.config.from_object(FlaskConfig)
+    # Create FastAPI app
+    app = FastAPI(
+        title="Flood Classification AI Service",
+        description="AI service for classifying images as flooded or non-flooded",
+        version=__version__,
+        lifespan=lifespan
+    )
     
     logger.info("Initializing AI Service application")
-    logger.info(f"API Version: {FlaskConfig.API_VERSION}")
-    logger.info(f"Debug Mode: {FlaskConfig.DEBUG}")
+    logger.info(f"API Version: {AppConfig.API_VERSION}")
+    logger.info(f"Debug Mode: {AppConfig.DEBUG}")
     
-    # Register blueprints
-    app.register_blueprint(health_bp)
-    app.register_blueprint(api_bp)
+    # Include routers
+    app.include_router(health_router)
+    app.include_router(api_router, prefix=AppConfig.API_PREFIX)
     
-    logger.info("Blueprints registered")
+    logger.info("Routers registered")
     
     # Error handlers
-    @app.errorhandler(404)
-    def not_found(error):
+    @app.exception_handler(404)
+    async def not_found_handler(request, exc):
         """Handle 404 errors."""
-        return {
-            "success": False,
-            "error": "Endpoint not found",
-            "status_code": 404
-        }, 404
+        return JSONResponse(
+            status_code=404,
+            content={
+                "success": False,
+                "error": "Endpoint not found",
+                "status_code": 404
+            }
+        )
     
-    @app.errorhandler(500)
-    def internal_error(error):
+    @app.exception_handler(500)
+    async def internal_error_handler(request, exc):
         """Handle 500 errors."""
-        logger.error(f"Internal server error: {error}")
-        return {
-            "success": False,
-            "error": "Internal server error",
-            "status_code": 500
-        }, 500
-    
-    @app.errorhandler(413)
-    def request_entity_too_large(error):
-        """Handle file too large errors."""
-        return {
-            "success": False,
-            "error": f"File too large. Maximum size: {FlaskConfig.MAX_CONTENT_LENGTH // (1024 * 1024)} MB",
-            "status_code": 413
-        }, 413
+        logger.error(f"Internal server error: {exc}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": "Internal server error",
+                "status_code": 500
+            }
+        )
     
     # Root route for basic info
-    @app.route("/")
-    def index():
+    @app.get("/")
+    async def index():
         """Root endpoint with service information."""
         return {
             "service": "Flood Classification AI Service",
             "version": __version__,
-            "api_version": FlaskConfig.API_VERSION,
+            "api_version": AppConfig.API_VERSION,
             "endpoints": {
                 "health": "/health",
-                "predict": f"{FlaskConfig.API_PREFIX}/predict"
+                "predict": f"{AppConfig.API_PREFIX}/predict"
             }
-        }, 200
+        }
     
     logger.info("Application initialized successfully")
     
     return app
+
+
+# Create the app instance
+app = create_app()
 
 
 def main():
@@ -103,23 +115,24 @@ def main():
     
     This function is called when running via the CLI command 'ai-service'.
     """
-    app = create_app()
+    import uvicorn
     
     print(f"\n{'='*60}")
     print(f"🌊 Flood Classification AI Service")
     print(f"{'='*60}")
-    print(f"Server starting on http://{FlaskConfig.HOST}:{FlaskConfig.PORT}")
-    print(f"API Version: {FlaskConfig.API_VERSION}")
-    print(f"Debug Mode: {FlaskConfig.DEBUG}")
+    print(f"Server starting on http://{AppConfig.HOST}:{AppConfig.PORT}")
+    print(f"API Version: {AppConfig.API_VERSION}")
+    print(f"Debug Mode: {AppConfig.DEBUG}")
     print(f"\nEndpoints:")
-    print(f"  - Health Check: http://{FlaskConfig.HOST}:{FlaskConfig.PORT}/health")
-    print(f"  - Prediction:   http://{FlaskConfig.HOST}:{FlaskConfig.PORT}{FlaskConfig.API_PREFIX}/predict")
+    print(f"  - Health Check: http://{AppConfig.HOST}:{AppConfig.PORT}/health")
+    print(f"  - Prediction:   http://{AppConfig.HOST}:{AppConfig.PORT}{AppConfig.API_PREFIX}/predict")
     print(f"{'='*60}\n")
     
-    app.run(
-        host=FlaskConfig.HOST,
-        port=FlaskConfig.PORT,
-        debug=FlaskConfig.DEBUG
+    uvicorn.run(
+        "ai_service:app",
+        host=AppConfig.HOST,
+        port=AppConfig.PORT,
+        reload=AppConfig.DEBUG
     )
 
 

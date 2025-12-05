@@ -8,16 +8,16 @@ Or use the CLI command:
     ai-service
 """
 
-from ai_service import create_app
-
-# Create the Flask application
-app = create_app()
+from ai_service import app
 
 if __name__ == "__main__":
-    from ai_service.config import FlaskConfig
+    import uvicorn
+    from ai_service.config import AppConfig
     
-    app.run(
-        host=FlaskConfig.HOST,
-        port=FlaskConfig.PORT,
-        debug=FlaskConfig.DEBUG
+    uvicorn.run(
+        "ai_service:app",
+        host=AppConfig.HOST,
+        port=AppConfig.PORT,
+        reload=AppConfig.DEBUG,
+        workers=AppConfig.WORKERS
     )

@@ -1,22 +1,23 @@
 """
-API routes for the flood classification service.
+API routes for the flood classification service using FastAPI.
 
-This module defines Flask blueprints and endpoints for the AI service.
+This module defines FastAPI routers and endpoints for the AI service.
 """
 
-from flask import Blueprint, request, jsonify
-from werkzeug.utils import secure_filename
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
 import logging
 from typing import Dict, Any
 
-from ai_service.config import FlaskConfig
+from ai_service.config import AppConfig
 from ai_service.core import FloodClassifier
 from ai_service.utils import preprocess_image, validate_image_file
 
 logger = logging.getLogger(__name__)
 
-# Create blueprint
-api_bp = Blueprint("api", __name__, url_prefix=FlaskConfig.API_PREFIX)
+# Create routers
+router = APIRouter()
+health_router = APIRouter()
 
 # Initialize model (singleton - loaded once when module is imported)
 try:
@@ -27,8 +28,41 @@ except Exception as e:
     classifier = None
 
 
-@api_bp.route("/predict", methods=["POST"])
-def predict():
+# ============================================================================
+# Pydantic Models
+# ============================================================================
+
+class PredictionResult(BaseModel):
+    """Prediction result structure."""
+    class_name: str
+    class_id: int
+    confidence: float
+    confident: bool
+    threshold: float
+    probabilities: Dict[str, float]
+
+
+class PredictResponse(BaseModel):
+    """Response for prediction endpoint."""
+    success: bool
+    prediction: PredictionResult = None
+    error: str = None
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+    service: str
+    version: str
+    model: Dict[str, Any]
+
+
+# ============================================================================
+# Routes
+# ============================================================================
+
+@router.post("/predict")
+async def predict(file: UploadFile = File(...)):
     """
     Image classification endpoint.
     
@@ -54,53 +88,40 @@ def predict():
                 }
             }
         }
-    
-    Error Responses:
-        400: Bad request (no file, invalid file type)
-        500: Server error (model not loaded, inference failed)
     """
     # Check if model is loaded
     if classifier is None:
         logger.error("Model not initialized")
-        return jsonify({
-            "success": False,
-            "error": "Model not initialized. Please check server logs."
-        }), 500
-    
-    # Check if file is present in request
-    if "file" not in request.files:
-        logger.warning("No file provided in request")
-        return jsonify({
-            "success": False,
-            "error": "No file provided. Please upload an image file."
-        }), 400
-    
-    file = request.files["file"]
+        raise HTTPException(
+            status_code=500,
+            detail="Model not initialized. Please check server logs."
+        )
     
     # Check if filename is empty
-    if file.filename == "":
+    if not file.filename:
         logger.warning("Empty filename in request")
-        return jsonify({
-            "success": False,
-            "error": "No file selected. Please select an image file."
-        }), 400
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected. Please select an image file."
+        )
     
     # Validate file extension
-    if not validate_image_file(file.filename, FlaskConfig.ALLOWED_EXTENSIONS):
+    if not validate_image_file(file.filename, AppConfig.ALLOWED_EXTENSIONS):
         logger.warning(f"Invalid file type: {file.filename}")
-        return jsonify({
-            "success": False,
-            "error": f"Invalid file type. Allowed types: {', '.join(FlaskConfig.ALLOWED_EXTENSIONS)}"
-        }), 400
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(AppConfig.ALLOWED_EXTENSIONS)}"
+        )
     
     try:
-        # Secure the filename
-        filename = secure_filename(file.filename)
-        logger.info(f"Processing image: {filename}")
+        logger.info(f"Processing image: {file.filename}")
+        
+        # Read file content
+        content = await file.read()
         
         # Preprocess the image
-        # file.stream is a file-like object that can be passed directly
-        preprocessed = preprocess_image(file.stream)
+        from io import BytesIO
+        preprocessed = preprocess_image(BytesIO(content))
         
         # Run prediction
         result = classifier.predict(preprocessed)
@@ -121,54 +142,40 @@ def predict():
             }
         }
         
-        logger.info(f"Prediction successful for {filename}: {result['predicted_label']}")
+        logger.info(f"Prediction successful for {file.filename}: {result['predicted_label']}")
         
-        return jsonify(response), 200
+        return response
     
     except ValueError as e:
         # Image preprocessing errors
         logger.error(f"Image preprocessing error: {e}")
-        return jsonify({
-            "success": False,
-            "error": f"Failed to process image: {str(e)}"
-        }), 400
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to process image: {str(e)}"
+        )
     
     except Exception as e:
         # Unexpected errors
         logger.error(f"Unexpected error during prediction: {e}", exc_info=True)
-        return jsonify({
-            "success": False,
-            "error": "An unexpected error occurred. Please try again."
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred. Please try again."
+        )
 
 
-# Health check endpoint (not under /api/v1 prefix)
-health_bp = Blueprint("health", __name__)
-
-
-@health_bp.route("/health", methods=["GET"])
-def health_check():
+@health_router.get("/health")
+async def health_check():
     """
     Health check endpoint.
     
     Returns the service status and model information.
-    
-    Response:
-        {
-            "status": "healthy",
-            "service": "flood-classification-ai",
-            "model": {
-                "loaded": true,
-                "model_info": {...}
-            }
-        }
     """
     model_loaded = classifier is not None
     
     response = {
         "status": "healthy" if model_loaded else "degraded",
         "service": "flood-classification-ai",
-        "version": FlaskConfig.API_VERSION,
+        "version": AppConfig.API_VERSION,
         "model": {
             "loaded": model_loaded
         }
@@ -182,6 +189,7 @@ def health_check():
             logger.error(f"Failed to get model info: {e}")
             response["model"]["info_error"] = str(e)
     
-    status_code = 200 if model_loaded else 503
+    if not model_loaded:
+        raise HTTPException(status_code=503, detail=response)
     
-    return jsonify(response), status_code
+    return response
