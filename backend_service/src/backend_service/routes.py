@@ -1,111 +1,210 @@
 """
-API routes for backend service.
+API routes for backend service using FastAPI.
 """
-from flask import Blueprint, request, jsonify
-import asyncio
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from .logger import logger
-from .ai_service import check_flood_status
 from .routing_service import get_safe_route
-from .camera_service import get_camera_service
+from .flood_state import get_flood_state_manager
+from .scheduler import trigger_immediate_flood_check
 
-main_bp = Blueprint('main', __name__)
+router = APIRouter()
 
-@main_bp.route('/route_request', methods=['POST'])
-def route_request():
+
+# ============================================================================
+# Pydantic Models
+# ============================================================================
+
+class LatLng(BaseModel):
+    """Latitude and longitude coordinates."""
+    lat: float = Field(..., description="Latitude")
+    lng: float = Field(..., description="Longitude")
+
+
+class RouteRequest(BaseModel):
+    """Request body for route calculation."""
+    start_coords: LatLng = Field(..., description="Starting coordinates")
+    end_coords: LatLng = Field(..., description="Ending coordinates")
+    # camera_ids is no longer used for flood checking (we use cached state)
+    # but kept for backward compatibility
+    camera_ids: List[str] = Field(default=[], description="Camera IDs (deprecated, ignored)")
+
+
+class RouteResponse(BaseModel):
+    """Response for route calculation."""
+    status: str
+    message: str
+    data: dict
+
+
+class FloodStatusResponse(BaseModel):
+    """Response for flood status endpoint."""
+    test_mode: bool
+    total_cameras: int
+    flooded_count: int
+    cameras: List[dict]
+
+
+class TestFloodResponse(BaseModel):
+    """Response for test flood toggle."""
+    test_mode: bool
+    message: str
+    flooded_count: int
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+
+
+# ============================================================================
+# Routes
+# ============================================================================
+
+@router.post("/route_request", response_model=RouteResponse)
+async def route_request(request: RouteRequest):
     """
-    Handle routing requests with camera IDs.
+    Handle routing requests with flood avoidance.
     
-    Expected JSON input:
-    {
-      "start_coords": {"lat": float, "lng": float},
-      "end_coords": {"lat": float, "lng": float},
-      "camera_ids": ["cam_id_1", "cam_id_2", ...]
-    }
-    
-    Returns:
-        JSON response with route information and flooded coordinates
+    Uses cached flood states from FloodStateManager instead of
+    real-time AI checks for faster response.
     """
     try:
-        data = request.get_json()
+        logger.info(f"Route request from {request.start_coords} to {request.end_coords}")
         
-        if not data:
-            logger.warning("Received request with invalid JSON")
-            return jsonify({"error": "Invalid JSON"}), 400
+        # Get flooded coordinates from cached state
+        flood_manager = get_flood_state_manager()
+        flooded_coords = flood_manager.get_flooded_coords()
         
-        # Extract and validate coordinates
-        start_coords = data.get('start_coords')
-        end_coords = data.get('end_coords')
-        camera_ids = data.get('camera_ids', [])
-        
-        if not start_coords or not end_coords:
-            logger.warning("Missing start_coords or end_coords in request")
-            return jsonify({"error": "Missing start_coords or end_coords"}), 400
-        
-        # Validate coordinate format
-        if not all(k in start_coords for k in ['lat', 'lng']):
-            return jsonify({"error": "start_coords must have 'lat' and 'lng' fields"}), 400
-        if not all(k in end_coords for k in ['lat', 'lng']):
-            return jsonify({"error": "end_coords must have 'lat' and 'lng' fields"}), 400
-        
-        logger.info(f"Route request from {start_coords} to {end_coords} with {len(camera_ids)} cameras")
-        
-        # Validate camera IDs if provided
-        flooded_coords = []
-        if camera_ids:
-            camera_service = get_camera_service()
-            valid_ids, invalid_ids = camera_service.validate_camera_ids(camera_ids)
-            
-            if invalid_ids:
-                logger.warning(f"Invalid camera IDs provided: {invalid_ids}")
-                return jsonify({
-                    "error": "Invalid camera IDs",
-                    "invalid_ids": invalid_ids
-                }), 400
-            
-            # Check flood status using AI service
-            try:
-                flooded_coords = asyncio.run(check_flood_status(valid_ids))
-            except Exception as e:
-                logger.error(f"Error calling AI service: {e}", exc_info=True)
-                # Continue with empty flooded_coords (fail-safe)
-                flooded_coords = []
+        logger.info(f"Using {len(flooded_coords)} cached flooded locations")
         
         # Calculate safe route
         logger.info("Calculating safe route")
-        path_coords = get_safe_route(start_coords, end_coords, flooded_coords)
+        path_coords = get_safe_route(
+            start_coords=request.start_coords.model_dump(),
+            end_coords=request.end_coords.model_dump(),
+            flooded_coords=flooded_coords
+        )
         
         if not path_coords:
             logger.warning("No route found")
-            return jsonify({
-                "error": "No route found",
-                "message": "Unable to calculate route between the given points"
-            }), 404
+            raise HTTPException(
+                status_code=404,
+                detail="Unable to calculate route between the given points"
+            )
         
-        response = {
-            "status": "success",
-            "message": "Route calculated",
-            "data": {
-                "start": start_coords,
-                "end": end_coords,
-                "camera_count": len(camera_ids),
-                "flooded_count": len(flooded_coords),
-                "flooded_coords": flooded_coords,
-                "path": path_coords,
-                "path_length": len(path_coords)
-            }
+        response_data = {
+            "start": request.start_coords.model_dump(),
+            "end": request.end_coords.model_dump(),
+            "flooded_count": len(flooded_coords),
+            "flooded_coords": flooded_coords,
+            "path": path_coords,
+            "path_length": len(path_coords),
+            "test_mode": flood_manager.test_mode
         }
         
-        logger.info(f"Route calculated successfully: {len(path_coords)} waypoints, {len(flooded_coords)} flooded areas")
-        return jsonify(response), 200
+        logger.info(f"Route calculated: {len(path_coords)} waypoints, {len(flooded_coords)} flooded areas")
         
+        return RouteResponse(
+            status="success",
+            message="Route calculated",
+            data=response_data
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error in route_request: {e}", exc_info=True)
-        return jsonify({
-            "error": "Internal server error",
-            "message": str(e)
-        }), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@main_bp.route('/health', methods=['GET'])
-def health():
+
+@router.get("/flood-status", response_model=FloodStatusResponse)
+async def get_flood_status():
+    """
+    Get current flood status for all cameras.
+    
+    Returns the status of all cameras including whether they are flooded,
+    their coordinates, and last check time.
+    """
+    flood_manager = get_flood_state_manager()
+    
+    return FloodStatusResponse(
+        test_mode=flood_manager.test_mode,
+        total_cameras=flood_manager.get_total_count(),
+        flooded_count=flood_manager.get_flooded_count(),
+        cameras=flood_manager.get_all_states()
+    )
+
+
+@router.post("/test-flood/enable", response_model=TestFloodResponse)
+async def enable_test_flood():
+    """
+    Enable test flood mode.
+    
+    Marks 40% of cameras as randomly flooded for testing purposes.
+    The scheduled flood checks will be skipped while test mode is active.
+    """
+    flood_manager = get_flood_state_manager()
+    flooded_count = flood_manager.enable_test_mode(flood_percentage=0.4)
+    
+    logger.info(f"Test flood mode enabled: {flooded_count} cameras marked as flooded")
+    
+    return TestFloodResponse(
+        test_mode=True,
+        message=f"Test mode enabled. {flooded_count} cameras marked as flooded.",
+        flooded_count=flooded_count
+    )
+
+
+@router.post("/test-flood/disable", response_model=TestFloodResponse)
+async def disable_test_flood():
+    """
+    Disable test flood mode.
+    
+    Returns to using real flood status from AI service.
+    Triggers an immediate flood status check.
+    """
+    flood_manager = get_flood_state_manager()
+    flood_manager.disable_test_mode()
+    
+    # Trigger immediate real check
+    await trigger_immediate_flood_check()
+    
+    logger.info("Test flood mode disabled, real flood check triggered")
+    
+    return TestFloodResponse(
+        test_mode=False,
+        message="Test mode disabled. Using real flood status.",
+        flooded_count=flood_manager.get_flooded_count()
+    )
+
+
+@router.post("/flood-check/trigger")
+async def trigger_flood_check():
+    """
+    Manually trigger an immediate flood status check.
+    
+    Useful for forcing an update without waiting for the scheduled interval.
+    """
+    flood_manager = get_flood_state_manager()
+    
+    if flood_manager.test_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot trigger flood check while test mode is active"
+        )
+    
+    await trigger_immediate_flood_check()
+    
+    return {
+        "status": "success",
+        "message": "Flood check triggered",
+        "flooded_count": flood_manager.get_flooded_count()
+    }
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health():
     """Health check endpoint."""
-    return jsonify({"status": "healthy"}), 200
+    return HealthResponse(status="healthy")

@@ -25,3 +25,4 @@ venv.bak/
 
 # Project specific
 /backend_service/cache/
+/cache/

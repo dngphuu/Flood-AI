@@ -1,5 +1,5 @@
 """API package for AI Service."""
 
-from ai_service.api.routes import api_bp, health_bp
+from ai_service.api.routes import router, health_router
 
-__all__ = ["api_bp", "health_bp"]
+__all__ = ["router", "health_router"]
