@@ -16,6 +16,7 @@ class CameraFloodState:
     camera_id: str
     is_flooded: bool
     coords: Dict[str, float]  # {"lat": float, "lng": float}
+    street_name: str = ""  # Camera location name
     last_checked: Optional[datetime] = None
     confidence: float = 0.0
 
@@ -65,6 +66,7 @@ class FloodStateManager:
                     camera_id=cam_id,
                     is_flooded=False,
                     coords=cam_info['coords'],
+                    street_name=cam_info.get('street_name', ''),
                     last_checked=None,
                     confidence=0.0
                 )
@@ -124,6 +126,7 @@ class FloodStateManager:
                 )
                 states.append({
                     "camera_id": cam_id,
+                    "name": state.street_name or cam_id,  # Use street_name as name, fallback to camera_id
                     "is_flooded": is_flooded,
                     "coords": state.coords,
                     "last_checked": state.last_checked.isoformat() if state.last_checked else None,

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flood Check Map</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container-fluid p-0 vh-100 overflow-hidden">
+      <div class="row g-0 h-100">
+        <!-- Sidebar -->
+        <div
+          class="col-md-4 col-lg-3 bg-white sidebar shadow z-3 position-relative d-flex flex-column"
+        >
+          <!-- Brand / Header -->
+          <div class="p-3 bg-success text-white">
+            <h5 class="m-0">
+              <i class="fa-solid fa-bus-simple me-2"></i> Flood Map AI
+            </h5>
+          </div>
+
+          <!-- Tabs -->
+          <ul class="nav nav-tabs nav-fill" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="home-tab" type="button" role="tab">
+                <i class="fa-solid fa-search"></i> LOOKUP
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link active fw-bold text-success"
+                id="route-tab"
+                type="button"
+                role="tab"
+              >
+                <i class="fa-solid fa-route"></i> FIND ROUTE
+              </button>
+            </li>
+          </ul>
+
+          <!-- Content -->
+          <div class="flex-grow-1 overflow-auto p-3">
+            <!-- Route Form -->
+            <div class="card border-0 mb-3">
+              <div class="card-body p-0">
+                <!-- Start Point -->
+                <div class="autocomplete-container mb-2">
+                  <div class="input-group">
+                    <span
+                      class="input-group-text bg-white border-end-0 text-success"
+                      ><i class="fa-solid fa-location-dot"></i
+                    ></span>
+                    <input
+                      type="text"
+                      class="form-control border-start-0"
+                      id="start-input"
+                      placeholder="Search start point..."
+                      autocomplete="off"
+                    />
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      id="btn-use-current"
+                    >
+                      <i class="fa-solid fa-crosshairs"></i>
+                    </button>
+                  </div>
+                  <ul id="start-suggestions" class="autocomplete-suggestions"></ul>
+                </div>
+
+                <!-- End Point -->
+                <div class="autocomplete-container mb-3">
+                  <div class="input-group">
+                    <span
+                      class="input-group-text bg-white border-end-0 text-danger"
+                      ><i class="fa-solid fa-location-dot"></i
+                    ></span>
+                    <input
+                      type="text"
+                      class="form-control border-start-0"
+                      id="end-input"
+                      placeholder="Search destination..."
+                      autocomplete="off"
+                    />
+                  </div>
+                  <ul id="end-suggestions" class="autocomplete-suggestions"></ul>
+                </div>
+
+                <!-- Find Button -->
+                <div class="d-grid gap-2">
+                  <button
+                    class="btn btn-success"
+                    type="button"
+                    id="btn-find-route"
+                  >
+                    FIND ROUTE
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <hr />
+
+            <!-- Layers / Toggles -->
+            <h6 class="text-muted text-uppercase small fw-bold">Layers</h6>
+
+            <div class="list-group list-group-flush mb-3">
+              <div
+                class="list-group-item px-0 d-flex justify-content-between align-items-center border-0"
+              >
+                <span
+                  ><i class="fa-solid fa-video text-success me-2"></i> Show
+                  Cameras</span
+                >
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="toggle-cameras"
+                  />
+                </div>
+              </div>
+              <div
+                class="list-group-item px-0 d-flex justify-content-between align-items-center border-0"
+              >
+                <span
+                  ><i class="fa-solid fa-water text-primary me-2"></i> Show
+                  Flood Areas</span
+                >
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="toggle-flood"
+                    checked
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Test Mode Controls (Optional but helpful) -->
+            <div class="card bg-light border-0 mb-3">
+              <div class="card-body p-2">
+                <small class="d-block text-muted mb-2">Dev Tools</small>
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="toggle-test-mode"
+                  />
+                  <label class="form-check-label small" for="toggle-test-mode"
+                    >Enable Test Flood Mode</label
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Statistics / Status -->
+            <div id="status-panel" class="alert alert-info d-none">
+              <small id="status-text">Ready</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Map Area -->
+        <div class="col-md-8 col-lg-9 h-100 position-relative p-0">
+          <div id="map" class="h-100 w-100"></div>
+
+          <!-- Loading Overlay -->
+          <div
+            id="loading-overlay"
+            class="position-absolute top-50 start-50 translate-middle bg-white p-3 rounded shadow d-none"
+            style="z-index: 2000"
+          >
+            <div class="spinner-border text-primary" role="status"></div>
+            <span class="ms-2">Processing...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+  </body>
+</html>

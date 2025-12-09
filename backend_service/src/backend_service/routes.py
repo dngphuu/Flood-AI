@@ -79,13 +79,19 @@ async def route_request(request: RouteRequest):
         
         logger.info(f"Using {len(flooded_coords)} cached flooded locations")
         
-        # Calculate safe route
+        # Convert flooded_coords from Dict format to List format for GraphHopper API
+        flooded_points = [[fc["lat"], fc["lng"]] for fc in flooded_coords] if flooded_coords else []
+        
+        # Calculate safe route using GraphHopper API
         logger.info("Calculating safe route")
-        path_coords = get_safe_route(
-            start_coords=request.start_coords.model_dump(),
-            end_coords=request.end_coords.model_dump(),
-            flooded_coords=flooded_coords
+        path_coords_list = get_safe_route(
+            start_point=[request.start_coords.lat, request.start_coords.lng],
+            end_point=[request.end_coords.lat, request.end_coords.lng],
+            flooded_points=flooded_points
         )
+        
+        # Convert response from List format back to Dict format for frontend
+        path_coords = [{"lat": coord[0], "lng": coord[1]} for coord in path_coords_list]
         
         if not path_coords:
             logger.warning("No route found")

@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from .routes import router
 from .logger import logger, setup_logging
-from .routing_service import load_or_download_graph
 from .camera_service import get_camera_service
 from .flood_state import get_flood_state_manager
 from .scheduler import init_scheduler, start_scheduler, stop_scheduler, trigger_immediate_flood_check
@@ -31,11 +30,6 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing flood state manager...")
         flood_manager = get_flood_state_manager()
         flood_manager.initialize_cameras(camera_service.cameras)
-        
-        # Pre-load map graph
-        logger.info("Pre-loading map graph...")
-        load_or_download_graph()
-        logger.info("Map graph loaded successfully")
         
         # Initialize and start scheduler
         logger.info("Starting background scheduler...")
@@ -71,8 +65,40 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
+    # Configure CORS to allow frontend from different origins
+    from fastapi.middleware.cors import CORSMiddleware
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     # Include routers
     app.include_router(router)
+    
+    # Mount static files
+    from fastapi.staticfiles import StaticFiles
+    from starlette.responses import FileResponse
+    import os
+
+    # Frontend directory is now at project root level
+    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend"))
+    if not os.path.exists(frontend_dir):
+        os.makedirs(frontend_dir)
+
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+    @app.get("/")
+    async def read_root():
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
     
     return app
 

@@ -14,9 +14,9 @@ AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8000/api/v1/predi
 AI_SERVICE_TIMEOUT = int(os.getenv("AI_SERVICE_TIMEOUT", "30"))
 AI_SERVICE_MAX_RETRIES = int(os.getenv("AI_SERVICE_MAX_RETRIES", "2"))
 
-# Map Configuration
-MAP_CACHE_DIR = Path(os.getenv("MAP_CACHE_DIR", "cache"))
-CITY_NAME = os.getenv("CITY_NAME", "Ho Chi Minh City, Vietnam")
+# GraphHopper Routing Configuration
+GRAPHHOPPER_API_KEY = os.getenv("GRAPHHOPPER_API_KEY", "")
+GRAPHHOPPER_BASE_URL = os.getenv("GRAPHHOPPER_BASE_URL", "https://graphhopper.com/api/1/route")
 
 # Camera Dataset Configuration
 CAMERA_DATASET_PATH = Path(os.getenv("CAMERA_DATASET_PATH", "dataset/dataset_camera_day_du.csv"))
@@ -30,7 +30,6 @@ CAMERA_BASE_URL = os.getenv("CAMERA_BASE_URL", "https://giaothong.hochiminhcity.
 CAMERA_IMAGE_TIMEOUT = int(os.getenv("CAMERA_IMAGE_TIMEOUT", "10"))
 
 # Ensure directories exist
-MAP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 
 # Flood Check Configuration
