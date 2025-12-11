@@ -134,7 +134,7 @@ class FloodStateManager:
                 })
             return states
     
-    def enable_test_mode(self, flood_percentage: float = 0.4) -> int:
+    def enable_test_mode(self, flood_percentage: float = 0.1) -> int:
         """
         Enable test mode with random flooded cameras.
         

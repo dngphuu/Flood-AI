@@ -10,7 +10,8 @@ const state = {
     floodLayer: null,  // Leaflet LayerGroup
     routeLayer: null,  // Leaflet Polyline
     startMarker: null,
-    endMarker: null
+    endMarker: null,
+    blockRadius: 150   // Block radius in meters (will be updated from backend)
 };
 
 // Global coordinate storage for autocomplete
@@ -118,7 +119,15 @@ async function findRoute() {
         }).addTo(map);
 
         map.fitBounds(state.routeLayer.getBounds(), { padding: [50, 50] });
-        updateStatus(`Route found! Length: ${routeData.path_length} nodes. Avoided ${routeData.flooded_count} floods.`);
+        
+        // Update block radius if provided by backend
+        if (routeData.block_radius_meters) {
+            state.blockRadius = routeData.block_radius_meters;
+            // Refresh flood visualization to use new radius
+            updateMapMarkers();
+        }
+        
+        updateStatus(`Route found! Length: ${routeData.path_length} nodes. Avoided ${routeData.flooded_count} floods (${state.blockRadius}m radius).`);
 
     } catch (error) {
         console.error('Error finding route:', error);
@@ -174,7 +183,7 @@ function updateMapMarkers() {
                 color: 'red',
                 fillColor: '#f03',
                 fillOpacity: 0.3,
-                radius: 100, // 100 meters radius
+                radius: state.blockRadius, // Use radius from backend (default 150m)
                 stroke: false
             });
             state.floodLayer.addLayer(circle);

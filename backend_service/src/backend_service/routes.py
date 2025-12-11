@@ -8,6 +8,7 @@ from .logger import logger
 from .routing_service import get_safe_route
 from .flood_state import get_flood_state_manager
 from .scheduler import trigger_immediate_flood_check
+from . import config  # Import config to access FLOOD_BLOCK_RADIUS_METERS
 
 router = APIRouter()
 
@@ -105,6 +106,7 @@ async def route_request(request: RouteRequest):
             "end": request.end_coords.model_dump(),
             "flooded_count": len(flooded_coords),
             "flooded_coords": flooded_coords,
+            "block_radius_meters": config.FLOOD_BLOCK_RADIUS_METERS,  # Let frontend know the block radius
             "path": path_coords,
             "path_length": len(path_coords),
             "test_mode": flood_manager.test_mode

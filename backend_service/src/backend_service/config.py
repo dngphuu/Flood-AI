@@ -6,17 +6,30 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file if it exists
-load_dotenv()
+# Load .env file from multiple possible locations
+# Priority: 1) Project root, 2) backend_service folder, 3) Current dir
+project_root = Path(__file__).parent.parent.parent.parent  # Go up from config.py to project root
+env_paths = [
+    project_root / ".env",  # d:/lap_trinh/python/flood-ai/.env
+    project_root / "backend_service" / ".env",  # d:/lap_trinh/python/flood-ai/backend_service/.env
+    Path(".env")  # Current directory
+]
+
+# Load first .env file found
+for env_path in env_paths:
+    if env_path.exists():
+        load_dotenv(env_path)
+        break
 
 # AI Service Configuration
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8000/api/v1/predict")
 AI_SERVICE_TIMEOUT = int(os.getenv("AI_SERVICE_TIMEOUT", "30"))
 AI_SERVICE_MAX_RETRIES = int(os.getenv("AI_SERVICE_MAX_RETRIES", "2"))
 
-# GraphHopper Routing Configuration
-GRAPHHOPPER_API_KEY = os.getenv("GRAPHHOPPER_API_KEY", "")
-GRAPHHOPPER_BASE_URL = os.getenv("GRAPHHOPPER_BASE_URL", "https://graphhopper.com/api/1/route")
+# OpenRouteService Routing Configuration (supports avoid_polygons in free tier)
+OPENROUTE_API_KEY = os.getenv("OPENROUTE_API_KEY", "")
+# Standard directions endpoint - returns JSON with routes array
+OPENROUTE_BASE_URL = os.getenv("OPENROUTE_BASE_URL", "https://api.openrouteservice.org/v2/directions/driving-car")
 
 # Camera Dataset Configuration
 CAMERA_DATASET_PATH = Path(os.getenv("CAMERA_DATASET_PATH", "dataset/dataset_camera_day_du.csv"))
@@ -34,3 +47,4 @@ Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 
 # Flood Check Configuration
 FLOOD_CHECK_INTERVAL_MINUTES = int(os.getenv("FLOOD_CHECK_INTERVAL_MINUTES", "60"))
+FLOOD_BLOCK_RADIUS_METERS = int(os.getenv("FLOOD_BLOCK_RADIUS_METERS", "150"))  # Radius to block around flooded cameras
