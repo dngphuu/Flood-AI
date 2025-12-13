@@ -1,15 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flood Check Map</title>
+    <title>Flood-AI - Hệ thống Dẫn đường Thông minh</title>
 
-    <!-- Bootstrap 5 CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
     <!-- Leaflet CSS -->
     <link
       rel="stylesheet"
@@ -17,194 +12,219 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <!-- FontAwesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="container-fluid p-0 vh-100 overflow-hidden">
-      <div class="row g-0 h-100">
-        <!-- Sidebar -->
-        <div
-          class="col-md-4 col-lg-3 bg-white sidebar shadow z-3 position-relative d-flex flex-column"
-        >
-          <!-- Brand / Header -->
-          <div class="p-3 bg-success text-white">
-            <h5 class="m-0">
-              <i class="fa-solid fa-bus-simple me-2"></i> Flood Map AI
-            </h5>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Brand Header -->
+        <div class="brand-header">
+          <div class="logo">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 2L4 8V14C4 22 10 28 16 30C22 28 28 22 28 14V8L16 2Z" fill="url(#gradient1)"/>
+              <path d="M16 10V22M10 16H22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+              <defs>
+                <linearGradient id="gradient1" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#667eea"/>
+                  <stop offset="1" stop-color="#764ba2"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="brand-name">
+              <span class="brand-title">FLOOD</span><span class="brand-accent">-AI</span>
+            </div>
           </div>
+        </div>
 
-          <!-- Tabs -->
-          <ul class="nav nav-tabs nav-fill" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="home-tab" type="button" role="tab">
-                <i class="fa-solid fa-search"></i> LOOKUP
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button
-                class="nav-link active fw-bold text-success"
-                id="route-tab"
-                type="button"
-                role="tab"
-              >
-                <i class="fa-solid fa-route"></i> FIND ROUTE
-              </button>
-            </li>
-          </ul>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+          <button class="tab-button active" id="tab-routing" data-tab="routing">
+            <span class="tab-icon">🧭</span>
+            <span class="tab-text">Dẫn đường</span>
+          </button>
+          <button class="tab-button" id="tab-inspection" data-tab="inspection">
+            <span class="tab-icon">👁️</span>
+            <span class="tab-text">Soi ngập</span>
+          </button>
+        </div>
 
-          <!-- Content -->
-          <div class="flex-grow-1 overflow-auto p-3">
+        <!-- Tab Content Container -->
+        <div class="tab-content-container">
+          <!-- Routing Tab Content -->
+          <div class="tab-content active" id="content-routing">
             <!-- Route Form -->
-            <div class="card border-0 mb-3">
-              <div class="card-body p-0">
-                <!-- Start Point -->
-                <div class="autocomplete-container mb-2">
-                  <div class="input-group">
-                    <span
-                      class="input-group-text bg-white border-end-0 text-success"
-                      ><i class="fa-solid fa-location-dot"></i
-                    ></span>
-                    <input
-                      type="text"
-                      class="form-control border-start-0"
-                      id="start-input"
-                      placeholder="Search start point..."
-                      autocomplete="off"
-                    />
-                    <button
-                      class="btn btn-outline-secondary"
-                      type="button"
-                      id="btn-use-current"
-                    >
-                      <i class="fa-solid fa-crosshairs"></i>
-                    </button>
-                  </div>
-                  <ul id="start-suggestions" class="autocomplete-suggestions"></ul>
-                </div>
-
-                <!-- End Point -->
-                <div class="autocomplete-container mb-3">
-                  <div class="input-group">
-                    <span
-                      class="input-group-text bg-white border-end-0 text-danger"
-                      ><i class="fa-solid fa-location-dot"></i
-                    ></span>
-                    <input
-                      type="text"
-                      class="form-control border-start-0"
-                      id="end-input"
-                      placeholder="Search destination..."
-                      autocomplete="off"
-                    />
-                  </div>
-                  <ul id="end-suggestions" class="autocomplete-suggestions"></ul>
-                </div>
-
-                <!-- Find Button -->
-                <div class="d-grid gap-2">
-                  <button
-                    class="btn btn-success"
-                    type="button"
-                    id="btn-find-route"
-                  >
-                    FIND ROUTE
+            <div class="form-section">
+              <!-- Start Point -->
+              <div class="input-wrapper autocomplete-container">
+                <label class="input-label">Điểm xuất phát</label>
+                <div class="input-group">
+                  <span class="input-icon start-icon">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 0C5.24 0 3 2.24 3 5c0 3.75 5 11 5 11s5-7.25 5-11c0-2.76-2.24-5-5-5zm0 7.5c-1.38 0-2.5-1.12-2.5-2.5S6.62 2.5 8 2.5s2.5 1.12 2.5 2.5S9.38 7.5 8 7.5z"/>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    class="modern-input"
+                    id="start-input"
+                    placeholder="Tìm kiếm điểm bắt đầu..."
+                    autocomplete="off"
+                  />
+                  <button class="input-action-btn" type="button" id="btn-use-current" title="Sử dụng vị trí hiện tại">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="8" cy="8" r="2"/>
+                      <path d="M8 0v3M8 13v3M0 8h3M13 8h3"/>
+                    </svg>
                   </button>
                 </div>
+                <ul id="start-suggestions" class="autocomplete-suggestions"></ul>
+              </div>
+
+              <!-- End Point -->
+              <div class="input-wrapper autocomplete-container">
+                <label class="input-label">Điểm đến</label>
+                <div class="input-group">
+                  <span class="input-icon end-icon">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 0C5.24 0 3 2.24 3 5c0 3.75 5 11 5 11s5-7.25 5-11c0-2.76-2.24-5-5-5zm0 7.5c-1.38 0-2.5-1.12-2.5-2.5S6.62 2.5 8 2.5s2.5 1.12 2.5 2.5S9.38 7.5 8 7.5z"/>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    class="modern-input"
+                    id="end-input"
+                    placeholder="Tìm kiếm điểm đến..."
+                    autocomplete="off"
+                  />
+                </div>
+                <ul id="end-suggestions" class="autocomplete-suggestions"></ul>
+              </div>
+
+              <!-- Action Button -->
+              <button class="primary-btn" type="button" id="btn-find-route">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="9" cy="9" r="8"/>
+                  <path d="M9 5v8M5 9h8"/>
+                </svg>
+                <span>Tìm đường</span>
+              </button>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Layers Section -->
+            <div class="layers-section">
+              <h3 class="section-title">Lớp bản đồ</h3>
+              
+              <div class="layer-item">
+                <div class="layer-info">
+                  <svg class="layer-icon camera-icon" width="20" height="20" viewBox="0 0 576 512" fill="currentColor">
+                    <path d="M0 128C0 92.7 28.7 64 64 64H320c35.3 0 64 28.7 64 64V384c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128zM559.1 99.8c10.4 5.6 16.9 16.4 16.9 28.2V384c0 11.8-6.5 22.6-16.9 28.2s-23 5-32.9-1.6l-96-64L416 337.1V320 192 174.9l14.2-9.5 96-64c9.8-6.5 22.4-7.2 32.9-1.6z"/>
+                  </svg>
+                  <span class="layer-label">Hiển thị Camera</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-cameras" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="layer-item">
+                <div class="layer-info">
+                  <svg class="layer-icon flood-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.5 15c.83 0 1.5-.67 1.5-1.5 0-.83-1.5-2.5-1.5-2.5S1 12.67 1 13.5c0 .83.67 1.5 1.5 1.5z"/>
+                    <path d="M7.5 15c.83 0 1.5-.67 1.5-1.5 0-.83-1.5-2.5-1.5-2.5S6 12.67 6 13.5c0 .83.67 1.5 1.5 1.5z"/>
+                    <path d="M12.5 15c.83 0 1.5-.67 1.5-1.5 0-.83-1.5-2.5-1.5-2.5S11 12.67 11 13.5c0 .83.67 1.5 1.5 1.5z"/>
+                    <path d="M17.5 15c.83 0 1.5-.67 1.5-1.5 0-.83-1.5-2.5-1.5-2.5S16 12.67 16 13.5c0 .83.67 1.5 1.5 1.5z"/>
+                  </svg>
+                  <span class="layer-label">Hiển thị Vùng ngập</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-flood" checked />
+                  <span class="toggle-slider"></span>
+                </label>
               </div>
             </div>
 
-            <hr />
+            <div class="divider"></div>
 
-            <!-- Layers / Toggles -->
-            <h6 class="text-muted text-uppercase small fw-bold">Layers</h6>
-
-            <div class="list-group list-group-flush mb-3">
-              <div
-                class="list-group-item px-0 d-flex justify-content-between align-items-center border-0"
-              >
-                <span
-                  ><i class="fa-solid fa-video text-success me-2"></i> Show
-                  Cameras</span
-                >
-                <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    id="toggle-cameras"
-                  />
-                </div>
-              </div>
-              <div
-                class="list-group-item px-0 d-flex justify-content-between align-items-center border-0"
-              >
-                <span
-                  ><i class="fa-solid fa-water text-primary me-2"></i> Show
-                  Flood Areas</span
-                >
-                <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    id="toggle-flood"
-                    checked
-                  />
-                </div>
+            <!-- Dev Tools Section -->
+            <div class="dev-section">
+              <h3 class="section-title dev-title">Công cụ phát triển</h3>
+              <div class="dev-item">
+                <label class="toggle-switch-inline">
+                  <input type="checkbox" id="toggle-test-mode" />
+                  <span class="toggle-slider-sm"></span>
+                  <span class="dev-label">Chế độ test ngập lụt</span>
+                </label>
               </div>
             </div>
 
-            <!-- Test Mode Controls (Optional but helpful) -->
-            <div class="card bg-light border-0 mb-3">
-              <div class="card-body p-2">
-                <small class="d-block text-muted mb-2">Dev Tools</small>
-                <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    id="toggle-test-mode"
-                  />
-                  <label class="form-check-label small" for="toggle-test-mode"
-                    >Enable Test Flood Mode</label
-                  >
-                </div>
+            <!-- Status Panel -->
+            <div id="status-panel" class="status-panel hidden">
+              <div class="status-content">
+                <span class="status-icon">ℹ️</span>
+                <span id="status-text" class="status-text">Sẵn sàng</span>
               </div>
             </div>
+          </div>
 
-            <!-- Statistics / Status -->
-            <div id="status-panel" class="alert alert-info d-none">
-              <small id="status-text">Ready</small>
+          <!-- Inspection Tab Content (Placeholder) -->
+          <div class="tab-content" id="content-inspection">
+            <div class="placeholder-content">
+              <div class="placeholder-icon">👁️</div>
+              <h3 class="placeholder-title">Chức năng Soi ngập</h3>
+              <p class="placeholder-text">Tính năng này đang được phát triển...</p>
             </div>
           </div>
         </div>
+      </aside>
 
-        <!-- Map Area -->
-        <div class="col-md-8 col-lg-9 h-100 position-relative p-0">
-          <div id="map" class="h-100 w-100"></div>
+      <!-- Map Area -->
+      <main class="map-container">
+        <div id="map" class="map"></div>
 
-          <!-- Loading Overlay -->
-          <div
-            id="loading-overlay"
-            class="position-absolute top-50 start-50 translate-middle bg-white p-3 rounded shadow d-none"
-            style="z-index: 2000"
-          >
-            <div class="spinner-border text-primary" role="status"></div>
-            <span class="ms-2">Processing...</span>
+        <!-- Error Alert Card -->
+        <div id="error-alert" class="alert-card error-alert hidden">
+          <div class="alert-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+          </div>
+          <div class="alert-content">
+            <h4 class="alert-title">Lỗi Tải Dữ Liệu</h4>
+            <p id="error-message" class="alert-message">
+              Không thể tải dữ liệu. Vui lòng thử lại sau.
+            </p>
+          </div>
+          <button class="alert-close" onclick="document.getElementById('error-alert').classList.add('hidden')">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span class="loading-text">Đang xử lý...</span>
           </div>
         </div>
-      </div>
+      </main>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Leaflet JS -->
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

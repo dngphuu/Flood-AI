@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "ai-service",
+    "backend-service",
     "numpy>=2.3.5",
 ]
 
@@ -13,3 +15,7 @@ members = [
     "ai_service",
     "backend_service",
 ]
+
+[tool.uv.sources]
+ai-service = { workspace = true }
+backend-service = { workspace = true }

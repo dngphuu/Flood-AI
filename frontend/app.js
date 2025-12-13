@@ -11,7 +11,8 @@ const state = {
     routeLayer: null,  // Leaflet Polyline
     startMarker: null,
     endMarker: null,
-    blockRadius: 150   // Block radius in meters (will be updated from backend)
+    blockRadius: 150,  // Block radius in meters (will be updated from backend)
+    currentCameraPopup: null  // Currently open camera popup
 };
 
 // Global coordinate storage for autocomplete
@@ -34,8 +35,8 @@ function debounce(func, delay) {
 // Map Initialization (Center on HCMC)
 const map = L.map('map').setView([10.7769, 106.7009], 13); // Central HCMC
 
-// Base Tile Layer (CartoDB Positron for clean look)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+// Base Tile Layer (CartoDB Dark Matter for dark theme)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     subdomains: 'abcd',
     maxZoom: 19
@@ -171,9 +172,14 @@ function updateMapMarkers() {
                 className: markerClass,
                 html: iconHtml,
                 iconSize: [30, 30],
-                iconAnchor: [15, 15]
+                iconAnchor: [15, 15]  // Center horizontally and vertically
             })
-        }).bindPopup(`<b>${cam.name || cam.camera_id}</b><br>Status: ${isFlooded ? "FLOODED" : "Dry"}`);
+        });
+        
+        // Add click event to show camera popup with image
+        marker.on('click', () => {
+            showCameraPopup(cam, marker);
+        });
         
         state.cameraLayer.addLayer(marker);
 
@@ -202,6 +208,76 @@ function updateMapMarkers() {
 }
 
 // ============================================================================
+// Camera Popup Functionality
+// ============================================================================
+
+function showCameraPopup(camera, marker) {
+    // Close previous popup if exists
+    if (state.currentCameraPopup) {
+        map.closePopup(state.currentCameraPopup);
+    }
+    
+    const cameraName = camera.name || camera.camera_id;
+    const status = camera.is_flooded ? 'Ngập lụt' : 'Khô ráo';
+    const statusClass = camera.is_flooded ? 'flooded' : 'dry';
+    const confidence = camera.confidence ? (camera.confidence * 100).toFixed(1) : 'N/A';
+    const lastChecked = camera.last_checked ? new Date(camera.last_checked).toLocaleString('vi-VN') : 'Chưa kiểm tra';
+    
+    // Build popup HTML
+    const popupContent = `
+        <div class="camera-popup">
+            <div class="camera-popup-header">
+                <h3 class="camera-popup-title">${cameraName}</h3>
+                <span class="camera-popup-status ${statusClass}">${status}</span>
+            </div>
+            <div class="camera-popup-image-container">
+                <img 
+                    class="camera-popup-image" 
+                    id="camera-img-${camera.camera_id}"
+                    src="${BACKEND_URL}/camera/${camera.camera_id}/image?t=${Date.now()}"
+                    alt="Camera ${cameraName}"
+                    onload="this.style.display='block'; document.getElementById('loading-${camera.camera_id}').style.display='none';"
+                    onerror="this.style.display='none'; document.getElementById('error-${camera.camera_id}').style.display='block'; document.getElementById('loading-${camera.camera_id}').style.display='none';"
+                    style="display: none;"
+                />
+                <div class="camera-popup-loading" id="loading-${camera.camera_id}">
+                    <div class="spinner-small"></div>
+                    <span>Đang tải ảnh...</span>
+                </div>
+                <div class="camera-popup-error" id="error-${camera.camera_id}" style="display: none;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <span>Không thể tải ảnh camera</span>
+                </div>
+            </div>
+            <div class="camera-popup-metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">Độ tin cậy:</span>
+                    <span class="metadata-value">${confidence}%</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Kiểm tra lần cuối:</span>
+                    <span class="metadata-value">${lastChecked}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Create and open popup
+    const popup = L.popup({
+        maxWidth: 400,
+        className: 'custom-camera-popup'
+    })
+    .setLatLng([camera.coords.lat, camera.coords.lng])
+    .setContent(popupContent)
+    .openOn(map);
+    
+    // Store reference to current popup
+    state.currentCameraPopup = popup;
+}
+
+// ============================================================================
 // Autocomplete Functionality
 // ============================================================================
 
@@ -212,7 +288,7 @@ async function searchLocation(inputElement, suggestionsListId) {
     // Clear suggestions if query is empty
     if (!query || query.length < 3) {
         suggestionsList.innerHTML = '';
-        suggestionsList.classList.remove('show');
+        suggestionsList.classList.remove('active');
         return;
     }
     
@@ -244,15 +320,15 @@ async function searchLocation(inputElement, suggestionsListId) {
                     <span class="autocomplete-item-address">${result.display_name}</span>
                 </li>
             `).join('');
-            suggestionsList.classList.add('show');
+            suggestionsList.classList.add('active');
         } else {
             suggestionsList.innerHTML = '<li class="autocomplete-item"><span class="autocomplete-item-name">Không tìm thấy kết quả</span></li>';
-            suggestionsList.classList.add('show');
+            suggestionsList.classList.add('active');
         }
     } catch (error) {
         console.error('Autocomplete error:', error);
         suggestionsList.innerHTML = '<li class="autocomplete-item"><span class="autocomplete-item-name">Lỗi tìm kiếm</span></li>';
-        suggestionsList.classList.add('show');
+        suggestionsList.classList.add('active');
     }
 }
 
@@ -265,14 +341,14 @@ function selectSuggestion(lat, lon, displayName, type) {
     if (type === 'start') {
         startCoords = [latitude, longitude];
         document.getElementById('start-input').value = displayName;
-        document.getElementById('start-suggestions').classList.remove('show');
+        document.getElementById('start-suggestions').classList.remove('active');
         
         // Update state and map marker
         setPoint({ lat: latitude, lng: longitude }, 'start');
     } else if (type === 'end') {
         endCoords = [latitude, longitude];
         document.getElementById('end-input').value = displayName;
-        document.getElementById('end-suggestions').classList.remove('show');
+        document.getElementById('end-suggestions').classList.remove('active');
         
         // Update state and map marker
         setPoint({ lat: latitude, lng: longitude }, 'end');
@@ -281,7 +357,7 @@ function selectSuggestion(lat, lon, displayName, type) {
 
 function hideSuggestions(suggestionsListId) {
     setTimeout(() => {
-        document.getElementById(suggestionsListId).classList.remove('show');
+        document.getElementById(suggestionsListId).classList.remove('active');
     }, 200);
 }
 
@@ -317,8 +393,8 @@ function initAutocomplete() {
     // Hide suggestions when clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.autocomplete-container')) {
-            startSuggestions.classList.remove('show');
-            endSuggestions.classList.remove('show');
+            startSuggestions.classList.remove('active');
+            endSuggestions.classList.remove('active');
         }
     });
     
@@ -386,6 +462,24 @@ function setPoint(coords, type) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Tab Switching
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.tab;
+            
+            // Update active states
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Show corresponding content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`content-${tabId}`).classList.add('active');
+        });
+    });
     
     // Initialize autocomplete
     initAutocomplete();
@@ -477,15 +571,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // Utilities
 function showLoading(show) {
     const el = document.getElementById('loading-overlay');
-    if (show) el.classList.remove('d-none');
-    else el.classList.add('d-none');
+    if (show) el.classList.remove('hidden');
+    else el.classList.add('hidden');
 }
 
 function updateStatus(msg, type='info') {
     const panel = document.getElementById('status-panel');
     const text = document.getElementById('status-text');
-    panel.className = `alert alert-${type} mb-3`;
-    panel.classList.remove('d-none');
+    panel.classList.remove('hidden');
     text.textContent = msg;
     
     // Auto hide after 5s

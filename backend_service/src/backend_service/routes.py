@@ -216,3 +216,40 @@ async def trigger_flood_check():
 async def health():
     """Health check endpoint."""
     return HealthResponse(status="healthy")
+
+
+@router.get("/camera/{camera_id}/image")
+async def get_camera_image(camera_id: str):
+    """
+    Get camera image by ID.
+    
+    Fetches the camera snapshot from the external camera API and returns it.
+    """
+    from fastapi.responses import Response
+    from .get_image import create_session, get_image_by_id
+    
+    try:
+        # Create session and fetch image
+        session = create_session()
+        image_data = get_image_by_id(session, camera_id)
+        
+        if image_data:
+            return Response(
+                content=image_data,
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=30",  # Cache for 30 seconds
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Camera image not available for camera {camera_id}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching camera image for {camera_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+

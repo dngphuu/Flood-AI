@@ -118,7 +118,7 @@ def main():
     import uvicorn
     
     print(f"\n{'='*60}")
-    print(f"🌊 Flood Classification AI Service")
+    print(f"Flood Classification AI Service")
     print(f"{'='*60}")
     print(f"Server starting on http://{AppConfig.HOST}:{AppConfig.PORT}")
     print(f"API Version: {AppConfig.API_VERSION}")
