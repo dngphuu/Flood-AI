@@ -4,65 +4,58 @@ Production-ready backend service for the Flood-AI project, providing intelligent
 
 ## 🌟 Features
 
-- **Smart Routing**: Dynamic route calculation avoiding flooded areas using OSMnx and NetworkX
+- **Smart Routing**: Dynamic route calculation avoiding flooded areas using OpenRouteService
 - **Camera Integration**: 696 cameras from Ho Chi Minh City traffic system
 - **AI-Powered Detection**: Real-time flood detection via AI service integration
-- **High Performance**: Map caching for 10-20x faster startup (15s vs 2-5 minutes)
 - **Production Ready**: Environment-based configuration, comprehensive logging, error handling
 - **Robust Architecture**: Retry logic, graceful degradation, efficient resource usage
 
 ## 📋 Requirements
 
-- Python >= 3.12
-- [uv](https://github.com/astral-sh/uv) (Package manager)
-- AI Service running on port 8000 (optional but recommended)
+- **Python**: >= 3.12
+- **uv**: Package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/))
+- **AI Service**: Running on port 8000 (optional but recommended)
+- **OpenRouteService API Key**: [Sign up for free](https://openrouteservice.org/dev/#/signup)
 
 ## 🚀 Quick Start
 
 ### Installation
 
+From the **project root** (`flood-ai/`):
+
 ```bash
-cd backend_service
 uv sync
 ```
 
+This installs dependencies for the entire workspace.
+
 ### Configuration
 
-Copy the example environment file and customize:
+1. **Copy the example environment file**:
 
-```bash
-cp .env.example .env
-```
+   ```bash
+   cp backend_service/.env.example backend_service/.env
+   ```
 
-Available configuration options:
+2. **Edit `.env` and add your OpenRouteService API key**:
+   ```env
+   OPENROUTE_API_KEY=your_api_key_here
+   ```
 
-```env
-# AI Service
-AI_SERVICE_URL=http://localhost:8000/api/v1/predict
-AI_SERVICE_TIMEOUT=30
-AI_SERVICE_MAX_RETRIES=2
-
-# Map Configuration
-MAP_CACHE_DIR=./cache
-CITY_NAME=Ho Chi Minh City, Vietnam
-
-# Camera Dataset
-CAMERA_DATASET_PATH=../dataset/dataset_camera_day_du.csv
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/backend_service.log
-
-# Camera Image API
-CAMERA_BASE_URL=https://giaothong.hochiminhcity.gov.vn:8007/Render/CameraHandler.ashx
-CAMERA_IMAGE_TIMEOUT=5
-```
+See [OPENROUTE_SETUP.md](OPENROUTE_SETUP.md) for detailed setup instructions.
 
 ### Running the Service
 
-Development server:
+From the **project root**:
 
 ```bash
+uv run backend-service
+```
+
+Or from the `backend_service/` directory:
+
+```bash
+cd backend_service
 uv run backend-service
 ```
 

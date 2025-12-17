@@ -17,7 +17,7 @@ Migrated from **GraphHopper** to **OpenRouteService** because:
 
 ### 1. Update `.env` File
 
-Add your OpenRouteService API key to `backend_service/.env`:
+Add your OpenRouteService API key to `.env`:
 
 ```bash
 OPENROUTE_API_KEY=your_api_key_here

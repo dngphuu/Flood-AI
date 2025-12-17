@@ -1,50 +1,54 @@
 # Flood Classification AI Service
 
-A high-performance Flask microservice for classifying flood images using ONNX Runtime. This service is part of the Flood AI project and follows Clean Architecture principles.
+A high-performance FastAPI microservice for classifying flood images using ONNX Runtime. This service is part of the Flood-AI project and follows Clean Architecture principles.
 
 ## 🚀 Tech Stack
 
-- **Framework**: Flask 3.x
+- **Framework**: FastAPI + Uvicorn
 - **Inference Engine**: ONNX Runtime (CPU)
-- **Image Processing**: NumPy & Pillow (No Torch/Torchvision dependencies)
-- **Architecture**: Modular Clean Architecture (Config, Core, Utils, API)
+- **Image Processing**: NumPy & Pillow (No PyTorch dependencies)
+- **Architecture**: Clean Architecture (Config, Core, Utils, Routes)
 
 ## 🏗 Architecture
 
 The service is organized into distinct layers:
 
-- **`config.py`**: Centralized configuration, absolute paths, and constants.
-- **`core/`**: Domain logic including ONNX model loading (with external weights) and softmax calculation.
-- **`utils/`**: Manual image preprocessing pipeline (Resize, ImageNet Normalization) using pure NumPy.
-- **`api/`**: Flask Blueprints and route handlers.
+- **`config.py`**: Centralized configuration, absolute paths, and constants
+- **`core.py`**: Domain logic including ONNX model loading and softmax calculation
+- **`utils.py`**: Image preprocessing pipeline (Resize, ImageNet Normalization) using pure NumPy
+- **`routes.py`**: FastAPI route handlers
 
 ## 🛠 Installation & Running
 
 ### Prerequisites
 
-- Python 3.12+
-- `uv` package manager (recommended)
+- **Python**: >= 3.12
+- **uv**: Package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/))
 
-### Setup
+### Quick Start
 
-1. **Install dependencies**:
+From the **project root** (`flood-ai/`):
+
+1. **Install all dependencies**:
 
    ```bash
-   cd ai_service
-   uv pip install -e .
+   uv sync
    ```
 
-2. **Run the service**:
+2. **Run the AI service**:
 
    ```bash
-   # Using the CLI command
    uv run ai-service
-
-   # OR directly via Python
-   python -m ai_service.app
    ```
 
-   The server will start at `http://0.0.0.0:5000`.
+   The server will start at `http://0.0.0.0:8000`
+
+### Alternative: Run from ai_service directory
+
+```bash
+cd ai_service
+uv run ai-service
+```
 
 ## 🔌 API Endpoints
 
