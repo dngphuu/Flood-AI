@@ -911,6 +911,55 @@ body {
 }
 
 /* ================================
+   Context Menu Styles
+   ================================ */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-success {
+  background: var(--color-start);
+  color: var(--color-text-white);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.3);
+}
+
+.btn-success:hover {
+  background: #38a169;
+  box-shadow: 0 4px 8px rgba(72, 187, 120, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: var(--color-end);
+  color: var(--color-text-white);
+  box-shadow: 0 2px 4px rgba(252, 129, 129, 0.3);
+}
+
+.btn-danger:hover {
+  background: #f56565;
+  box-shadow: 0 4px 8px rgba(252, 129, 129, 0.4);
+  transform: translateY(-1px);
+}
+
+.mb-1 {
+  margin-bottom: 4px;
+}
+
+/* ================================
    Utility Classes
    ================================ */
 .hidden {
@@ -1106,3 +1155,28 @@ body {
   transform: scale(1.2);
 }
 
+/* Location Marker Styles */
+.location-icon-start,
+.location-icon-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.location-icon-start {
+  color: var(--color-start);
+  filter: drop-shadow(0 0 10px rgba(72, 187, 120, 0.8));
+}
+
+.location-icon-end {
+  color: var(--color-end);
+  filter: drop-shadow(0 0 10px rgba(252, 129, 129, 0.8));
+}
+
+.location-icon-start:hover,
+.location-icon-end:hover {
+  transform: scale(1.1);
+}

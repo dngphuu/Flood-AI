@@ -340,18 +340,16 @@ function selectSuggestion(lat, lon, displayName, type) {
     // Store coordinates in global variables
     if (type === 'start') {
         startCoords = [latitude, longitude];
-        document.getElementById('start-input').value = displayName;
         document.getElementById('start-suggestions').classList.remove('active');
         
-        // Update state and map marker
-        setPoint({ lat: latitude, lng: longitude }, 'start');
+        // Update state and map marker with display name
+        setPoint({ lat: latitude, lng: longitude }, 'start', displayName);
     } else if (type === 'end') {
         endCoords = [latitude, longitude];
-        document.getElementById('end-input').value = displayName;
         document.getElementById('end-suggestions').classList.remove('active');
         
-        // Update state and map marker
-        setPoint({ lat: latitude, lng: longitude }, 'end');
+        // Update state and map marker with display name
+        setPoint({ lat: latitude, lng: longitude }, 'end', displayName);
     }
 }
 
@@ -443,17 +441,19 @@ async function handleSearch(inputId, type) {
     }
 }
 
-function setPoint(coords, type) {
+function setPoint(coords, type, displayName = null) {
     if (type === 'start') {
         state.startPoint = coords;
-        document.getElementById('start-input').value = `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+        // Display address if provided, otherwise show coordinates
+        document.getElementById('start-input').value = displayName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
         if (state.startMarker) map.removeLayer(state.startMarker);
         state.startMarker = L.marker([coords.lat, coords.lng], { icon: startIcon, draggable: true }).addTo(map);
         state.startMarker.on('dragend', (e) => setPoint(e.target.getLatLng(), 'start'));
         map.panTo([coords.lat, coords.lng]);
     } else {
         state.endPoint = coords;
-        document.getElementById('end-input').value = `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+        // Display address if provided, otherwise show coordinates
+        document.getElementById('end-input').value = displayName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
         if (state.endMarker) map.removeLayer(state.endMarker);
         state.endMarker = L.marker([coords.lat, coords.lng], { icon: endIcon, draggable: true }).addTo(map);
         state.endMarker.on('dragend', (e) => setPoint(e.target.getLatLng(), 'end'));
